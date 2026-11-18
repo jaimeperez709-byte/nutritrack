@@ -72,7 +72,7 @@ export default function App() {
             setDate={setDate}
             onAdd={(meal) => setAdding({ meal })}
             onEdit={setEditing}
-            onAI={() => setAiOpen(true)}
+            onAI={() => (data.profile.aiKey ? setAiOpen(true) : setTab('perfil'))}
           />
         )}
         {tab === 'escanear' && <Scanner foods={data.foods} addFood={addFood} addEntry={addEntry} date={date} />}

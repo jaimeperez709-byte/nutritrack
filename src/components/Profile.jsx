@@ -78,7 +78,9 @@ export default function Profile({ data, setData, replaceAll }) {
 
       <section className="card space-y-3">
         <h2 className="flex items-center gap-2 font-bold"><KeyRound size={18} /> IA con tu propia API Key (opcional)</h2>
-        <p className="text-xs text-slate-500">La clave se guarda solo en este dispositivo (localStorage) y se envía únicamente al proveedor elegido. Nunca se incluye en los respaldos.</p>
+        <p className="text-xs text-slate-500">
+          Con una clave puedes tomar una foto de tu plato y la IA calcula calorías y macros. Clave gratis de Gemini: abre <b>aistudio.google.com/apikey</b>, pulsa “Create API key” y pégala aquí. Se guarda solo en este teléfono y nunca va en los respaldos.
+        </p>
         <Select
           label="Proveedor"
           value={profile.aiProvider}

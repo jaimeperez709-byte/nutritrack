@@ -50,10 +50,11 @@ export default function Dashboard({ data, date, setDate, onAdd, onEdit, onAI }) 
         </div>
       </div>
 
-      {hasAI && (
-        <button className="btn-ghost w-full" onClick={onAI}>
-          <Sparkles size={18} className="text-brand-600" /> Analizar con IA (foto o texto)
-        </button>
+      <button className="btn-primary w-full !py-3.5" onClick={onAI}>
+        <Sparkles size={18} /> {hasAI ? 'Foto de tu comida con IA' : 'Activar foto de comida con IA'}
+      </button>
+      {!hasAI && (
+        <p className="-mt-2 text-center text-xs text-slate-500">Necesitas pegar una clave gratuita en Perfil (toma 2 minutos).</p>
       )}
 
       {/* Comidas */}
