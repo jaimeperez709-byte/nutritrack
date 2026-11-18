@@ -61,13 +61,14 @@ export async function analyzeMeal({ provider, apiKey, model, text, imageBase64 }
           ? 'Gemini tardó demasiado en responder. Revisa tu señal e intenta de nuevo.'
           : 'No se pudo conectar con Gemini. Revisa tu conexión e intenta de nuevo.'
       )
-    const call = async (generationConfig) => {
+    const call = async (generationConfig, simple = false) => {
       const ctrl = new AbortController()
       const timer = setTimeout(() => ctrl.abort(), 45000)
       try {
-        const res = await fetch(url, {
+        // modo "simple": clave en la URL y sin cabeceras especiales (evita el preflight CORS)
+        const res = await fetch(simple ? `${url}?key=${encodeURIComponent(apiKey)}` : url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          headers: simple ? { 'Content-Type': 'text/plain' } : { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
           signal: ctrl.signal,
           body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig }),
         })
@@ -86,9 +87,11 @@ export async function analyzeMeal({ provider, apiKey, model, text, imageBase64 }
     } catch (e) {
       // un reintento si la conexión falló
       try {
-        r = await call(base)
+        r = await call(base, true)
       } catch (e2) {
-        throw netErr(e2)
+        const err = netErr(e2)
+        err.message += ` (${e2?.name || 'Error'}: ${e2?.message || ''})`
+        throw err
       }
     }
     if (!r.res.ok) throw new Error(r.json.error?.message || `Gemini respondió ${r.res.status}`)
