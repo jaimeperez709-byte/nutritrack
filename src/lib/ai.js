@@ -4,7 +4,7 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional ni markdown, con esta
 {"items":[{"name":"string","grams":number,"kcal":number,"protein":number,"carbs":number,"fat":number}]}
 Los valores de kcal, protein, carbs y fat son TOTALES para los gramos indicados (no por 100 g). Protein, carbs y fat en gramos. Usa nombres en español.`
 
-export const DEFAULT_MODELS = { gemini: 'gemini-3.8-flash', anthropic: 'claude-haiku-5-5' }
+export const DEFAULT_MODELS = { gemini: 'gemini-3.5-flash-lite', anthropic: 'claude-haiku-5-5' }
 
 // Reduce la foto para que la subida sea rápida
 export function fileToJpegBase64(file, maxSide = 800) {
@@ -59,12 +59,12 @@ export async function analyzeMeal({ provider, apiKey, model, text, imageBase64 }
     const netErr = (e) =>
       new Error(
         e?.name === 'AbortError'
-          ? 'Gemini tardó demasiado en responder. Revisa tu señal e intenta de nuevo.'
+          ? 'Gemini tardó más de 20 segundos. Toca Analizar otra vez.'
           : 'No se pudo conectar con Gemini. Revisa tu conexión e intenta de nuevo.'
       )
     const call = async (generationConfig, simple = false) => {
       const ctrl = new AbortController()
-      const timer = setTimeout(() => ctrl.abort(), 45000)
+      const timer = setTimeout(() => ctrl.abort(), 20000)
       try {
         // modo "simple": clave en la URL y sin cabeceras especiales (evita el preflight CORS)
         const res = await fetch(simple ? `${url}?key=${encodeURIComponent(apiKey)}` : url, {
@@ -97,7 +97,7 @@ export async function analyzeMeal({ provider, apiKey, model, text, imageBase64 }
     }
     // Modelo saturado (503/429) o retirado (404): probar otros modelos Flash
     if (!r.res.ok && !model && [503, 429, 404].includes(r.res.status)) {
-      for (const alt of ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']) {
+      for (const alt of ['gemini-3.8-flash', 'gemini-3.7-flash']) {
         url = urlFor(alt)
         try {
           r = await call({ ...base, thinkingConfig: { thinkingLevel: 'low' } })
