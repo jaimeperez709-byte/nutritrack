@@ -82,7 +82,18 @@ export default function Scanner({ foods, addFood, addEntry, date }) {
       busyRef.current = false
       await scanner.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: (w, h) => ({ width: Math.min(w * 0.9, 320), height: Math.min(h * 0.5, 160) }), aspectRatio: 1.333 },
+        {
+          fps: 15,
+          // Zona de lectura grande y apaisada (los códigos de barras son anchos)
+          qrbox: (w, h) => ({ width: Math.floor(w * 0.92), height: Math.floor(Math.min(h * 0.6, w * 0.55)) }),
+          // Más resolución y enfoque continuo = lectura mucho más fiable en el celular
+          videoConstraints: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            advanced: [{ focusMode: 'continuous' }],
+          },
+        },
         async (text) => {
           if (busyRef.current) return
           busyRef.current = true
@@ -117,6 +128,24 @@ export default function Scanner({ foods, addFood, addEntry, date }) {
     }
   }
 
+  // Plan B: foto con la cámara nativa del teléfono (enfoca mejor que el video en vivo)
+  const scanPhoto = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setError('')
+    setState('loading')
+    try {
+      const s = new Html5Qrcode('reader-file', { formatsToSupport: FORMATS, verbose: false })
+      const text = await s.scanFile(file, false)
+      try { s.clear() } catch { /* noop */ }
+      lookup(text)
+    } catch {
+      setState('idle')
+      setError('No se pudo leer el código en la foto. Acércate, que el código se vea nítido y recto, y vuelve a intentar.')
+    }
+  }
+
   const cancel = async () => {
     await stop()
     setState('idle')
@@ -140,8 +169,9 @@ export default function Scanner({ foods, addFood, addEntry, date }) {
     <div className="space-y-4 p-4">
       <h1 className="text-2xl font-extrabold">Escanear producto</h1>
 
-      <div className="card">
-        <div id={READER_ID} className={active ? '' : 'hidden'} />
+      <div className="card !p-2">
+        <div id={READER_ID} className={active ? 'min-h-[360px]' : ''} />
+        <div id="reader-file" className="hidden" />
         {!active && (
           <div className="flex flex-col items-center gap-2 py-10 text-center text-slate-500">
             {state === 'loading' ? <Loader2 className="animate-spin" size={40} /> : <Camera size={40} />}
@@ -159,6 +189,13 @@ export default function Scanner({ foods, addFood, addEntry, date }) {
         <button className="btn-primary w-full !py-4 text-lg" onClick={start} disabled={state === 'loading'}>
           <Camera size={22} /> Abrir cámara y escanear
         </button>
+      )}
+
+      {!active && (
+        <label className="btn-ghost w-full cursor-pointer">
+          <Camera size={20} /> Tomar foto del código
+          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={scanPhoto} />
+        </label>
       )}
 
       {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
