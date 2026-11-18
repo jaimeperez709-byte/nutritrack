@@ -1,9 +1,10 @@
 import React from 'react'
 import { ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react'
 import { Ring, MacroBar, MacroLine, Empty } from './ui'
+import ProgressCard from './Progress'
 import { MEALS, sumTotals, entryTotals, prettyDate, shiftDate, dateKey, r0 } from '../lib/nutrition'
 
-export default function Dashboard({ data, date, setDate, onAdd, onEdit, onAI }) {
+export default function Dashboard({ data, setData, date, setDate, onAdd, onEdit, onAI, onGoProfile }) {
   const { profile, log } = data
   const entries = log[date] || []
   const total = sumTotals(entries)
@@ -36,6 +37,8 @@ export default function Dashboard({ data, date, setDate, onAdd, onEdit, onAI }) 
         <button className={`rounded-full px-3 py-1 ${date === today ? 'bg-brand-600 text-white' : 'bg-slate-200 dark:bg-slate-800'}`} onClick={() => setDate(today)}>Hoy</button>
         <button className={`rounded-full px-3 py-1 ${date === shiftDate(today, -1) ? 'bg-brand-600 text-white' : 'bg-slate-200 dark:bg-slate-800'}`} onClick={() => setDate(shiftDate(today, -1))}>Ayer</button>
       </div>
+
+      <ProgressCard data={data} setData={setData} onGoProfile={onGoProfile} />
 
       {/* Resumen */}
       <div className="card flex items-center gap-4">

@@ -121,3 +121,47 @@ export function calcGoals({ sex, age, weight, height, activity, goal }) {
   const carbs = Math.max(0, r0((calories - protein * 4 - fat * 9) / 4))
   return { calories, protein, carbs, fat, tdee: r0(tdee) }
 }
+
+export const daysUntil = (key) => {
+  if (!key) return 0
+  const t = new Date()
+  t.setHours(0, 0, 0, 0)
+  return Math.round((parseKey(key) - t) / 86400000)
+}
+
+export const longDate = (key) => parseKey(key).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })
+
+// Plan automático: calcula las calorías para llegar al peso objetivo en la fecha del evento (boda).
+// Ritmo limitado a un máximo seguro: bajar hasta 1 kg/sem, subir hasta 0,5 kg/sem.
+export function planGoals(p) {
+  const w = num(p.weight), h = num(p.height), a = num(p.age), gw = num(p.goalWeight)
+  if (!w || !h || !a) return null
+  const bmr = 10 * w + 6.25 * h - 5 * a + (p.sex === 'f' ? -161 : 5)
+  const tdee = bmr * (ACTIVITY[p.activity] || 1.55)
+  const days = daysUntil(p.eventDate)
+  if (!gw) {
+    const g = calcGoals(p)
+    return g && { ...g, mode: 'manual', weeklyKg: 0, neededWeekly: 0, capped: false, floored: false, days, tdee: r0(tdee) }
+  }
+  const delta = gw - w
+  let needed = Math.abs(delta) < 0.3 ? 0 : days >= 7 ? delta / (days / 7) : delta < 0 ? -0.5 : 0.25
+  const weekly = Math.max(-1, Math.min(0.5, needed))
+  const capped = weekly !== needed
+  const minCal = p.sex === 'f' ? 1200 : 1500
+  const wanted = r0(tdee + (weekly * 7700) / 7)
+  const calories = Math.max(minCal, wanted)
+  const protein = r0(w * (weekly < 0 ? 2.0 : 1.8))
+  const fat = r0((calories * 0.25) / 9)
+  const carbs = Math.max(0, r0((calories - protein * 4 - fat * 9) / 4))
+  return {
+    calories, protein, carbs, fat, tdee: r0(tdee),
+    mode: days >= 7 ? 'evento' : 'objetivo',
+    neededWeekly: needed,
+    weeklyKg: ((calories - tdee) * 7) / 7700,
+    capped,
+    floored: calories > wanted,
+    days,
+  }
+}
+
+export const goalOfPlan = (g) => (g.weeklyKg < -0.05 ? 'deficit' : g.weeklyKg > 0.05 ? 'superavit' : 'mantenimiento')

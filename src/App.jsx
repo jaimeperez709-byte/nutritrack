@@ -8,7 +8,9 @@ import Picker from './components/Picker'
 import QuantitySheet from './components/QuantitySheet'
 import AIModal from './components/AIModal'
 import ImportRecipeModal from './components/ImportRecipeModal'
-import { loadData, saveData } from './lib/storage'
+import UserPicker from './components/UserPicker'
+import { loadData, saveData, setUser, USERS, requestPersistence } from './lib/storage'
+import { getCode, push, pull, mergeRemote } from './lib/sync'
 import { dateKey, defaultMeal, perPortion, uid } from './lib/nutrition'
 import { readImportParam, clearImportParam } from './lib/share'
 
@@ -19,7 +21,7 @@ const TABS = [
   { id: 'perfil', label: 'Perfil', Icon: User },
 ]
 
-export default function App() {
+function Tracker({ userId, onSwitch }) {
   const [data, setData] = useState(loadData)
   const [tab, setTab] = useState(() => (loadData().profile.onboarded ? 'hoy' : 'perfil'))
   const [date, setDate] = useState(dateKey())
@@ -31,6 +33,27 @@ export default function App() {
   const [incoming, setIncoming] = useState(null) // receta recibida por enlace
 
   useEffect(() => saveData(data), [data])
+  useEffect(() => requestPersistence(), [])
+
+  // Nube: al abrir, si la nube tiene datos más nuevos se usan; luego se sube cada cambio (con 2 s de espera)
+  const [synced, setSynced] = useState(false)
+  useEffect(() => {
+    const code = getCode(userId)
+    if (!code) return setSynced(true)
+    pull(code)
+      .then((remote) => {
+        if (remote?.data && remote.t > (data._t || 0)) setData((cur) => mergeRemote(remote.data, cur))
+      })
+      .then(() => setSynced(true))
+      .catch(() => {}) // sin conexión: no se sube nada para no pisar la nube
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    const code = getCode(userId)
+    if (!code || !synced) return
+    const t = setTimeout(() => push(code, data).catch(() => {}), 2000)
+    return () => clearTimeout(t)
+  }, [data, synced, userId])
 
   // Enlace mágico: ?importRecipe=...
   useEffect(() => {
@@ -65,9 +88,16 @@ export default function App() {
   return (
     <div className="mx-auto flex h-full max-w-lg flex-col">
       <main className="safe-top flex-1 overflow-y-auto pb-24">
+        <div className="flex items-center justify-end px-4 pt-2">
+          <button onClick={onSwitch} className="rounded-full bg-slate-200/70 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-200">
+            👤 {USERS.find((u) => u.id === userId)?.name} · Cambiar
+          </button>
+        </div>
         {tab === 'hoy' && (
           <Dashboard
             data={data}
+            setData={setData}
+            onGoProfile={() => setTab('perfil')}
             date={date}
             setDate={setDate}
             onAdd={(meal) => setAdding({ meal })}
@@ -77,7 +107,7 @@ export default function App() {
         )}
         {tab === 'escanear' && <ScanTab profile={data.profile} foods={data.foods} addFood={addFood} addEntry={addEntry} addEntries={addEntries} date={date} onGoProfile={() => setTab('perfil')} />}
         {tab === 'recetas' && <Library data={data} setData={setData} addEntry={addEntry} date={date} />}
-        {tab === 'perfil' && <Profile data={data} setData={setData} replaceAll={replaceAll} />}
+        {tab === 'perfil' && <Profile data={data} setData={setData} replaceAll={replaceAll} userId={userId} />}
       </main>
 
       {/* Barra inferior fija */}
@@ -165,4 +195,19 @@ export default function App() {
       )}
     </div>
   )
+}
+
+export default function App() {
+  const [user, setUserId] = useState(null)
+  if (!user) {
+    return (
+      <UserPicker
+        onPick={(id) => {
+          setUser(id) // antes de cargar los datos de ese usuario
+          setUserId(id)
+        }}
+      />
+    )
+  }
+  return <Tracker key={user} userId={user} onSwitch={() => setUserId(null)} />
 }

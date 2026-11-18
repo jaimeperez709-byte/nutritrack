@@ -1,11 +1,12 @@
 import React, { useRef, useState } from 'react'
-import { Calculator, Download, Upload, KeyRound, Smartphone, Trash2 } from 'lucide-react'
-import { NumField, Select } from './ui'
-import { ACTIVITY_OPTIONS, GOAL_OPTIONS, calcGoals, num } from '../lib/nutrition'
-import { exportBackup, readBackup } from '../lib/storage'
+import { Calculator, Download, Upload, KeyRound, Smartphone, Trash2, Cloud, Copy } from 'lucide-react'
+import { NumField, Select, TextField } from './ui'
+import { ACTIVITY_OPTIONS, GOAL_OPTIONS, planGoals, goalOfPlan, num, r1, longDate, dateKey } from '../lib/nutrition'
+import { exportBackup, readBackup, clearCurrent } from '../lib/storage'
+import { getCode, setCode, newCode, prettyCode, normalizeCode, push, pull, mergeRemote } from '../lib/sync'
 import { DEFAULT_MODELS } from '../lib/ai'
 
-export default function Profile({ data, setData, replaceAll }) {
+export default function Profile({ data, setData, replaceAll, userId }) {
   const { profile } = data
   const fileRef = useRef(null)
   const [msg, setMsg] = useState('')
@@ -15,10 +16,23 @@ export default function Profile({ data, setData, replaceAll }) {
   const calculable = num(profile.age) && num(profile.weight) && num(profile.height)
 
   const calculate = () => {
-    const g = calcGoals(profile)
+    const g = planGoals(profile)
     if (!g) return
-    setP({ calories: g.calories, protein: g.protein, carbs: g.carbs, fat: g.fat, onboarded: true })
-    setMsg(`Metas calculadas (gasto estimado ${g.tdee} kcal/día). Puedes ajustarlas abajo.`)
+    const kg = num(profile.weight)
+    setData((d) => ({
+      ...d,
+      // el primer peso queda como punto de partida del historial
+      weights: d.weights?.length ? d.weights : [{ d: dateKey(), kg }],
+      profile: { ...d.profile, calories: g.calories, protein: g.protein, carbs: g.carbs, fat: g.fat, goal: goalOfPlan(g), onboarded: true },
+    }))
+    const ritmo = `${g.weeklyKg < 0 ? 'bajar' : g.weeklyKg > 0 ? 'subir' : 'mantener'} ~${r1(Math.abs(g.weeklyKg))} kg/semana`
+    setMsg(
+      g.mode === 'manual'
+        ? `Metas calculadas (gasto estimado ${g.tdee} kcal/día). Ajústalas abajo si quieres.`
+        : `Para llegar a ${profile.goalWeight} kg ${g.mode === 'evento' ? `el ${longDate(profile.eventDate)} (${g.days} días)` : ''}: ${ritmo} → ${g.calories} kcal/día (gasto estimado ${g.tdee}).` +
+            (g.capped ? ' Ojo: la fecha es muy exigente; limité el ritmo a lo seguro, así que quizá llegues un poco después.' : '') +
+            (g.floored ? ' Subí las calorías al mínimo saludable.' : '')
+    )
   }
 
   const onImport = async (e) => {
@@ -38,7 +52,7 @@ export default function Profile({ data, setData, replaceAll }) {
 
   const wipe = () => {
     if (window.confirm('¿Borrar TODOS los datos de la app en este dispositivo? Esta acción no se puede deshacer.')) {
-      localStorage.removeItem('nutritrack:v1')
+      clearCurrent()
       window.location.reload()
     }
   }
@@ -60,8 +74,16 @@ export default function Profile({ data, setData, replaceAll }) {
           <NumField label="Peso" value={profile.weight} onChange={(v) => setP({ weight: v })} suffix="kg" />
           <NumField label="Altura" value={profile.height} onChange={(v) => setP({ height: v })} suffix="cm" />
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <NumField label="Peso objetivo" value={profile.goalWeight} onChange={(v) => setP({ goalWeight: v })} suffix="kg" />
+          <TextField label="Nombre de la meta" value={profile.eventName} onChange={(e) => setP({ eventName: e.target.value })} placeholder="Boda" />
+        </div>
+        <label className="block">
+          <span className="label">Fecha de la meta</span>
+          <input type="date" className="input" value={profile.eventDate} onChange={(e) => setP({ eventDate: e.target.value })} />
+        </label>
         <Select label="Actividad" value={profile.activity} onChange={(v) => setP({ activity: v })} options={ACTIVITY_OPTIONS} />
-        <Select label="Objetivo" value={profile.goal} onChange={(v) => setP({ goal: v })} options={GOAL_OPTIONS} />
+        {!num(profile.goalWeight) && <Select label="Objetivo" value={profile.goal} onChange={(v) => setP({ goal: v })} options={GOAL_OPTIONS} />}
         <button className="btn-primary w-full" disabled={!calculable} onClick={calculate}>Calcular metas</button>
         {msg && <p className="text-sm text-slate-500">{msg}</p>}
       </section>
@@ -110,6 +132,8 @@ export default function Profile({ data, setData, replaceAll }) {
         <p className="text-xs text-slate-500">{profile.aiKey ? '✅ El botón “Analizar con IA” está activo en Hoy.' : 'Sin clave: la función de IA permanece oculta.'}</p>
       </section>
 
+      <CloudSection userId={userId} data={data} replaceAll={replaceAll} />
+
       <section className="card space-y-3">
         <h2 className="font-bold">Respaldo de datos</h2>
         <div className="grid grid-cols-2 gap-2">
@@ -126,5 +150,74 @@ export default function Profile({ data, setData, replaceAll }) {
         <p><b>Android (Chrome):</b> menú ⋮ → “Instalar app” / “Añadir a pantalla de inicio”.</p>
       </section>
     </div>
+  )
+}
+
+function CloudSection({ userId, data, replaceAll }) {
+  const [code, setC] = useState(() => getCode(userId))
+  const [entry, setEntry] = useState('')
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const activate = async () => {
+    setBusy(true)
+    try {
+      const c = newCode()
+      await push(c, data)
+      setCode(userId, c)
+      setC(normalizeCode(c))
+      setMsg('Listo: tus datos ya se guardan en la nube. Anota este código en un lugar seguro.')
+    } catch {
+      setMsg('No se pudo conectar. Revisa tu internet e intenta de nuevo.')
+    }
+    setBusy(false)
+  }
+  const restore = async () => {
+    const c = normalizeCode(entry)
+    if (c.length < 20) return setMsg('El código tiene 20 letras y números. Revisa que esté completo.')
+    setBusy(true)
+    try {
+      const remote = await pull(c)
+      if (!remote?.data) setMsg('No encontré datos con ese código.')
+      else if (window.confirm('Esto reemplaza los datos de este teléfono por los de la nube. ¿Continuar?')) {
+        setCode(userId, c)
+        setC(c)
+        replaceAll(mergeRemote(remote.data, data))
+        setMsg('Datos recuperados desde la nube.')
+      }
+    } catch {
+      setMsg('No se pudo conectar. Revisa tu internet e intenta de nuevo.')
+    }
+    setBusy(false)
+  }
+  const copy = () => navigator.clipboard?.writeText(prettyCode(code)).then(() => setMsg('Código copiado.'))
+
+  return (
+    <section className="card space-y-3">
+      <h2 className="flex items-center gap-2 font-bold"><Cloud size={18} /> Guardado en la nube</h2>
+      {code ? (
+        <>
+          <p className="text-xs text-slate-500">✅ Se guarda solo en la nube cada vez que cambias algo. Si borras el historial o cambias de teléfono, entra aquí con tu código para recuperar todo.</p>
+          <div className="flex items-center gap-2 rounded-xl bg-slate-100 p-3 dark:bg-slate-800">
+            <code className="flex-1 break-all text-sm font-semibold tracking-wide">{prettyCode(code)}</code>
+            <button className="btn-ghost !p-2" onClick={copy} aria-label="Copiar"><Copy size={16} /></button>
+          </div>
+          <p className="text-xs text-slate-500">Guarda este código (en notas o WhatsApp contigo mismo). Quien lo tenga puede ver tus datos, no lo compartas.</p>
+        </>
+      ) : (
+        <>
+          <p className="text-xs text-slate-500">Hoy tus datos viven solo en este teléfono: si limpias el historial del navegador se pierden. Actívalo para tener copia automática en la nube.</p>
+          <button className="btn-primary w-full" disabled={busy} onClick={activate}>{busy ? 'Activando…' : 'Activar guardado en la nube'}</button>
+        </>
+      )}
+      <div className="space-y-2 border-t border-slate-200 pt-3 dark:border-slate-800">
+        <span className="label">¿Ya tienes un código? Recupera tus datos</span>
+        <div className="flex gap-2">
+          <input className="input" value={entry} onChange={(e) => setEntry(e.target.value)} placeholder="XXXXX-XXXXX-XXXXX-XXXXX" autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
+          <button className="btn-ghost" disabled={busy || !entry} onClick={restore}>Recuperar</button>
+        </div>
+      </div>
+      {msg && <p className="text-sm text-slate-500">{msg}</p>}
+    </section>
   )
 }

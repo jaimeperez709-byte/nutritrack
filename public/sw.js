@@ -1,6 +1,6 @@
 // Service Worker básico: cachea la interfaz (app shell) para uso offline.
 // Las llamadas a otros orígenes (Open Food Facts, APIs de IA) nunca se cachean.
-const CACHE = 'nutritrack-v1'
+const CACHE = 'nutritrack-v2'
 const SHELL = ['/', '/index.html', '/manifest.json', '/icons/icon.svg', '/icons/icon-192.png']
 
 self.addEventListener('install', (e) => {
@@ -20,6 +20,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request
   const url = new URL(req.url)
   if (req.method !== 'GET' || url.origin !== self.location.origin) return
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/.netlify/')) return // nunca cachear la sincronización
 
   // Navegación: red primero, caché como respaldo offline
   if (req.mode === 'navigate') {

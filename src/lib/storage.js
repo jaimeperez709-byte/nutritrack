@@ -1,6 +1,15 @@
 import { seedFoods } from './seedFoods'
 
-const KEY = 'nutritrack:v1'
+// Usuarios de este dispositivo. Jaime conserva la clave original (sus datos no se tocan).
+export const USERS = [
+  { id: 'jaime', name: 'Jaime', key: 'nutritrack:v1' },
+  { id: 'alejandra', name: 'Alejandra', key: 'nutritrack:v1:alejandra' },
+]
+let current = USERS[0]
+export const setUser = (id) => {
+  current = USERS.find((u) => u.id === id) || USERS[0]
+}
+const KEY_OF = () => current.key
 
 export const emptyProfile = {
   sex: 'm',
@@ -17,13 +26,16 @@ export const emptyProfile = {
   aiProvider: 'gemini', // 'gemini' | 'anthropic'
   aiKey: '',
   aiModel: '',
+  goalWeight: '',
+  eventName: 'Boda',
+  eventDate: '2027-06-05',
 }
 
-const fresh = () => ({ profile: { ...emptyProfile }, foods: seedFoods(), recipes: [], log: {} })
+const fresh = () => ({ profile: { ...emptyProfile }, foods: seedFoods(), recipes: [], log: {}, weights: [], _t: 0 })
 
 export function loadData() {
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(KEY_OF())
     if (!raw) return fresh()
     const d = JSON.parse(raw)
     return {
@@ -31,6 +43,8 @@ export function loadData() {
       foods: Array.isArray(d.foods) ? d.foods : seedFoods(),
       recipes: Array.isArray(d.recipes) ? d.recipes : [],
       log: d.log && typeof d.log === 'object' ? d.log : {},
+      weights: Array.isArray(d.weights) ? d.weights : [],
+      _t: d._t || 0,
     }
   } catch {
     return fresh()
@@ -39,7 +53,7 @@ export function loadData() {
 
 export function saveData(data) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(data))
+    localStorage.setItem(KEY_OF(), JSON.stringify({ ...data, _t: Date.now() }))
   } catch (e) {
     console.warn('No se pudo guardar en localStorage', e)
   }
@@ -53,7 +67,7 @@ export function exportBackup(data) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `nutritrack-respaldo-${new Date().toISOString().slice(0, 10)}.json`
+  a.download = `nutritrack-${current.id}-respaldo-${new Date().toISOString().slice(0, 10)}.json`
   document.body.appendChild(a)
   a.click()
   a.remove()
@@ -72,5 +86,16 @@ export async function readBackup(file, current) {
     foods: d.foods,
     recipes: Array.isArray(d.recipes) ? d.recipes : [],
     log: d.log,
+    weights: Array.isArray(d.weights) ? d.weights : [],
   }
+}
+
+export const clearCurrent = () => localStorage.removeItem(KEY_OF())
+export const currentUser = () => current
+
+// Pide al navegador que no borre estos datos por falta de espacio
+export const requestPersistence = () => {
+  try {
+    navigator.storage?.persist?.()
+  } catch {}
 }
