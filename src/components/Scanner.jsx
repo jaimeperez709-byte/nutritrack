@@ -84,8 +84,7 @@ export default function Scanner({ foods, addFood, addEntry, date }) {
         { facingMode: 'environment' },
         {
           fps: 15,
-          // Zona de lectura grande y apaisada (los códigos de barras son anchos)
-          qrbox: (w, h) => ({ width: Math.floor(w * 0.92), height: Math.floor(Math.min(h * 0.6, w * 0.55)) }),
+          // Sin qrbox: se lee todo el cuadro de la cámara (más fácil de apuntar)
           // Más resolución y enfoque continuo = lectura mucho más fiable en el celular
           videoConstraints: {
             facingMode: { ideal: 'environment' },
@@ -170,7 +169,17 @@ export default function Scanner({ foods, addFood, addEntry, date }) {
       <h1 className="text-2xl font-extrabold">Escanear producto</h1>
 
       <div className="card !p-2">
-        <div id={READER_ID} className={active ? 'min-h-[360px]' : ''} />
+        <div className="relative overflow-hidden rounded-xl" style={active ? { height: '38dvh' } : undefined}>
+          <div id={READER_ID} />
+          {state === 'scanning' && (
+            <>
+              <div className="pointer-events-none absolute inset-x-6 top-1/2 h-0.5 -translate-y-1/2 bg-red-500/80" />
+              <p className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-xs font-semibold text-white drop-shadow">
+                Centra el código de barras sobre la línea roja
+              </p>
+            </>
+          )}
+        </div>
         <div id="reader-file" className="hidden" />
         {!active && (
           <div className="flex flex-col items-center gap-2 py-10 text-center text-slate-500">
