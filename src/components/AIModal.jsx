@@ -4,13 +4,13 @@ import { Modal, NumField, Select, TextField } from './ui'
 import { analyzeMeal, fileToJpegBase64 } from '../lib/ai'
 import { MEALS, defaultMeal, num, uid } from '../lib/nutrition'
 
-export default function AIModal({ profile, onSave, onClose, initialImageB64 }) {
+export default function AIModal({ profile, onSave, onClose, initialImageB64, initialMeal }) {
   const [text, setText] = useState('')
   const [image, setImage] = useState(initialImageB64 ? { b64: initialImageB64, url: `data:image/jpeg;base64,${initialImageB64}` } : null) // { b64, url }
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [items, setItems] = useState(null)
-  const [meal, setMeal] = useState(defaultMeal())
+  const [meal, setMeal] = useState(initialMeal || defaultMeal())
   const fileRef = useRef(null)
 
   const onFile = async (e) => {

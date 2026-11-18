@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import FoodCamera from './FoodCamera'
 import Scanner from './Scanner'
 
-export default function ScanTab({ profile, foods, addFood, addEntry, addEntries, date, onGoProfile }) {
+export default function ScanTab({ profile, foods, addFood, addEntry, addEntries, date, onGoProfile, meal, onDone }) {
   const [mode, setMode] = useState('food')
   return (
     <div className="space-y-4 p-4">
@@ -14,9 +14,9 @@ export default function ScanTab({ profile, foods, addFood, addEntry, addEntries,
         ))}
       </div>
       {mode === 'food' ? (
-        <FoodCamera profile={profile} date={date} addEntries={addEntries} onGoProfile={onGoProfile} />
+        <FoodCamera profile={profile} date={date} addEntries={addEntries} onGoProfile={onGoProfile} meal={meal} onDone={onDone} />
       ) : (
-        <Scanner foods={foods} addFood={addFood} addEntry={addEntry} date={date} />
+        <Scanner foods={foods} addFood={addFood} addEntry={addEntry} date={date} meal={meal} onDone={onDone} />
       )}
     </div>
   )

@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Camera } from 'lucide-react'
 import { Modal, Empty, MacroLine } from './ui'
 import { perPortion } from '../lib/nutrition'
 
 // Buscador de alimentos y/o recetas. onPick({kind:'food'|'recipe', item})
-export default function Picker({ foods, recipes = [], allowRecipes = true, onPick, onClose, title = 'Añadir alimento' }) {
+export default function Picker({ foods, recipes = [], allowRecipes = true, onPick, onClose, onScan, title = 'Añadir alimento' }) {
   const [q, setQ] = useState('')
   const [tab, setTab] = useState('foods')
   const term = q.trim().toLowerCase()
@@ -17,6 +17,11 @@ export default function Picker({ foods, recipes = [], allowRecipes = true, onPic
 
   return (
     <Modal title={title} onClose={onClose}>
+      {onScan && (
+        <button className="btn-primary mb-3 w-full !py-3" onClick={onScan}>
+          <Camera size={18} /> Escanear: foto o código de barras
+        </button>
+      )}
       <div className="relative">
         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input className="input pl-10" placeholder="Buscar…" value={q} onChange={(e) => setQ(e.target.value)} />

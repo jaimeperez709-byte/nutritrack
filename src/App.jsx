@@ -7,11 +7,12 @@ import Profile from './components/Profile'
 import Picker from './components/Picker'
 import QuantitySheet from './components/QuantitySheet'
 import AIModal from './components/AIModal'
+import { Modal } from './components/ui'
 import ImportRecipeModal from './components/ImportRecipeModal'
 import UserPicker from './components/UserPicker'
 import { loadData, saveData, setUser, USERS, requestPersistence } from './lib/storage'
 import { getCode, push, pull, mergeRemote } from './lib/sync'
-import { dateKey, defaultMeal, perPortion, uid } from './lib/nutrition'
+import { dateKey, defaultMeal, perPortion, uid, MEALS } from './lib/nutrition'
 import { readImportParam, clearImportParam } from './lib/share'
 
 const TABS = [
@@ -30,6 +31,7 @@ function Tracker({ userId, onSwitch }) {
   const [picked, setPicked] = useState(null) // { kind, item, meal }
   const [editing, setEditing] = useState(null) // entry
   const [aiOpen, setAiOpen] = useState(false)
+  const [scanning, setScanning] = useState(null) // id de la comida a la que se añade escaneando
   const [incoming, setIncoming] = useState(null) // receta recibida por enlace
 
   useEffect(() => saveData(data), [data])
@@ -127,7 +129,25 @@ function Tracker({ userId, onSwitch }) {
       </nav>
 
       {adding && !picked && (
-        <Picker foods={data.foods} recipes={data.recipes} onClose={() => setAdding(null)} onPick={(p) => setPicked({ ...p, meal: adding.meal })} />
+        <Picker foods={data.foods} recipes={data.recipes} onClose={() => setAdding(null)} onScan={() => { setScanning(adding.meal); setAdding(null) }} onPick={(p) => setPicked({ ...p, meal: adding.meal })} />
+      )}
+      {scanning && (
+        <Modal title={`Escanear · ${MEALS.find((m) => m.id === scanning)?.label}`} onClose={() => setScanning(null)}>
+          <ScanTab
+            profile={data.profile}
+            foods={data.foods}
+            addFood={addFood}
+            addEntry={addEntry}
+            addEntries={addEntries}
+            date={date}
+            meal={scanning}
+            onDone={() => setScanning(null)}
+            onGoProfile={() => {
+              setScanning(null)
+              setTab('perfil')
+            }}
+          />
+        </Modal>
       )}
       {picked && (
         <QuantitySheet

@@ -16,7 +16,7 @@ const FORMATS = [
   Html5QrcodeSupportedFormats.CODE_39,
 ]
 
-export default function Scanner({ foods, addFood, addEntry, date, onFoodPhoto }) {
+export default function Scanner({ foods, addFood, addEntry, date, onFoodPhoto, meal, onDone }) {
   const scannerRef = useRef(null)
   const busyRef = useRef(false)
   const [state, setState] = useState('idle') // idle | starting | scanning | loading
@@ -160,13 +160,14 @@ export default function Scanner({ foods, addFood, addEntry, date, onFoodPhoto })
       base: { kcal: product.kcal, p: product.p, c: product.c, f: product.f },
     })
     setProduct(null)
+    onDone?.()
   }
 
   const active = state === 'scanning' || state === 'starting'
 
   return (
-    <div className="space-y-4 p-4">
-      <h1 className="text-2xl font-extrabold">Código de barras</h1>
+    <div className="space-y-4">
+      <h1 className="text-xl font-extrabold">Código de barras</h1>
 
       <div className="card !p-2">
         <div id={READER_ID} className={active ? 'min-h-[260px]' : ''} />
@@ -216,7 +217,7 @@ export default function Scanner({ foods, addFood, addEntry, date, onFoodPhoto })
           base={{ kcal: product.kcal, p: product.p, c: product.c, f: product.f }}
           unit="g"
           initialQty={100}
-          initialMeal={defaultMeal()}
+          initialMeal={meal || defaultMeal()}
           saveLabel="Registrar en el diario"
           onSave={record}
           onClose={() => setProduct(null)}

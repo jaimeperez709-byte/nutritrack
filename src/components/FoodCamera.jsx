@@ -4,7 +4,7 @@ import AIModal from './AIModal'
 import { fileToJpegBase64 } from '../lib/ai'
 
 // Cámara en vivo: apuntas al plato, tomas la foto y la IA calcula calorías y macros.
-export default function FoodCamera({ profile, date, addEntries, onGoProfile }) {
+export default function FoodCamera({ profile, date, addEntries, onGoProfile, meal, onDone }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const fileRef = useRef(null)
@@ -59,12 +59,12 @@ export default function FoodCamera({ profile, date, addEntries, onGoProfile }) {
   const capture = () => {
     const v = videoRef.current
     if (!v || !v.videoWidth) return
-    const k = Math.min(1, 1024 / Math.max(v.videoWidth, v.videoHeight))
+    const k = Math.min(1, 800 / Math.max(v.videoWidth, v.videoHeight))
     const c = document.createElement('canvas')
     c.width = Math.round(v.videoWidth * k)
     c.height = Math.round(v.videoHeight * k)
     c.getContext('2d').drawImage(v, 0, 0, c.width, c.height)
-    const b64 = c.toDataURL('image/jpeg', 0.82).split(',')[1]
+    const b64 = c.toDataURL('image/jpeg', 0.78).split(',')[1]
     stop()
     setShot(b64)
   }
@@ -119,9 +119,11 @@ export default function FoodCamera({ profile, date, addEntries, onGoProfile }) {
         <AIModal
           profile={profile}
           initialImageB64={shot}
+          initialMeal={meal}
           onClose={() => setShot(null)}
           onSave={(entries) => {
             addEntries(date, entries)
+            onDone?.()
             setShot(null)
           }}
         />
