@@ -4,7 +4,7 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional ni markdown, con esta
 {"items":[{"name":"string","grams":number,"kcal":number,"protein":number,"carbs":number,"fat":number}]}
 Los valores de kcal, protein, carbs y fat son TOTALES para los gramos indicados (no por 100 g). Protein, carbs y fat en gramos. Usa nombres en español.`
 
-export const DEFAULT_MODELS = { gemini: 'gemini-2.5-flash', anthropic: 'claude-haiku-5-5' }
+export const DEFAULT_MODELS = { gemini: 'gemini-3.8-flash', anthropic: 'claude-haiku-5-5' }
 
 // Reduce la foto para que la subida sea rápida
 export function fileToJpegBase64(file, maxSide = 1024) {
