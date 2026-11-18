@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
-import { Camera, CameraOff, Loader2, Keyboard } from 'lucide-react'
+import { Camera, CameraOff, Loader2, Keyboard, Sparkles } from 'lucide-react'
 import QuantitySheet from './QuantitySheet'
 import FoodForm from './FoodForm'
 import { fetchProduct } from '../lib/openFoodFacts'
@@ -16,7 +16,7 @@ const FORMATS = [
   Html5QrcodeSupportedFormats.CODE_39,
 ]
 
-export default function Scanner({ foods, addFood, addEntry, date }) {
+export default function Scanner({ foods, addFood, addEntry, date, onFoodPhoto }) {
   const scannerRef = useRef(null)
   const busyRef = useRef(false)
   const [state, setState] = useState('idle') // idle | starting | scanning | loading
@@ -84,7 +84,7 @@ export default function Scanner({ foods, addFood, addEntry, date }) {
         { facingMode: 'environment' },
         {
           fps: 15,
-          // Sin qrbox: se lee todo el cuadro de la cámara (más fácil de apuntar)
+          qrbox: (w, h) => ({ width: Math.floor(w * 0.9), height: Math.floor(Math.min(h * 0.45, w * 0.4)) }),
           // Más resolución y enfoque continuo = lectura mucho más fiable en el celular
           videoConstraints: {
             facingMode: { ideal: 'environment' },
@@ -166,20 +166,10 @@ export default function Scanner({ foods, addFood, addEntry, date }) {
 
   return (
     <div className="space-y-4 p-4">
-      <h1 className="text-2xl font-extrabold">Escanear producto</h1>
+      <h1 className="text-2xl font-extrabold">Código de barras</h1>
 
       <div className="card !p-2">
-        <div className="relative overflow-hidden rounded-xl" style={active ? { height: '38dvh' } : undefined}>
-          <div id={READER_ID} />
-          {state === 'scanning' && (
-            <>
-              <div className="pointer-events-none absolute inset-x-6 top-1/2 h-0.5 -translate-y-1/2 bg-red-500/80" />
-              <p className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-xs font-semibold text-white drop-shadow">
-                Centra el código de barras sobre la línea roja
-              </p>
-            </>
-          )}
-        </div>
+        <div id={READER_ID} className={active ? 'min-h-[260px]' : ''} />
         <div id="reader-file" className="hidden" />
         {!active && (
           <div className="flex flex-col items-center gap-2 py-10 text-center text-slate-500">

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Home, ScanLine, BookOpen, User } from 'lucide-react'
 import Dashboard from './components/Dashboard'
-import Scanner from './components/Scanner'
+import ScanTab from './components/ScanTab'
 import Library from './components/Library'
 import Profile from './components/Profile'
 import Picker from './components/Picker'
@@ -75,7 +75,7 @@ export default function App() {
             onAI={() => (data.profile.aiKey ? setAiOpen(true) : setTab('perfil'))}
           />
         )}
-        {tab === 'escanear' && <Scanner foods={data.foods} addFood={addFood} addEntry={addEntry} date={date} />}
+        {tab === 'escanear' && <ScanTab profile={data.profile} foods={data.foods} addFood={addFood} addEntry={addEntry} addEntries={addEntries} date={date} onGoProfile={() => setTab('perfil')} />}
         {tab === 'recetas' && <Library data={data} setData={setData} addEntry={addEntry} date={date} />}
         {tab === 'perfil' && <Profile data={data} setData={setData} replaceAll={replaceAll} />}
       </main>

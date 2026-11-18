@@ -1,12 +1,12 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Camera, Loader2, Sparkles, Trash2 } from 'lucide-react'
 import { Modal, NumField, Select, TextField } from './ui'
 import { analyzeMeal, fileToJpegBase64 } from '../lib/ai'
 import { MEALS, defaultMeal, num, uid } from '../lib/nutrition'
 
-export default function AIModal({ profile, onSave, onClose }) {
+export default function AIModal({ profile, onSave, onClose, initialImageB64 }) {
   const [text, setText] = useState('')
-  const [image, setImage] = useState(null) // { b64, url }
+  const [image, setImage] = useState(initialImageB64 ? { b64: initialImageB64, url: `data:image/jpeg;base64,${initialImageB64}` } : null) // { b64, url }
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [items, setItems] = useState(null)
@@ -25,7 +25,7 @@ export default function AIModal({ profile, onSave, onClose }) {
     e.target.value = ''
   }
 
-  const run = async () => {
+  const run = async (b64 = image?.b64) => {
     setLoading(true)
     setError('')
     try {
@@ -34,7 +34,7 @@ export default function AIModal({ profile, onSave, onClose }) {
         apiKey: profile.aiKey,
         model: profile.aiModel,
         text,
-        imageBase64: image?.b64,
+        imageBase64: b64,
       })
       if (!res.length) throw new Error('La IA no identificó alimentos. Intenta describir mejor el plato.')
       setItems(res.map((i) => ({ key: uid(), name: i.name, grams: String(i.grams), kcal: String(Math.round(i.kcal)), p: String(i.p), c: String(i.c), f: String(i.f) })))
@@ -43,6 +43,11 @@ export default function AIModal({ profile, onSave, onClose }) {
     }
     setLoading(false)
   }
+
+  useEffect(() => {
+    if (initialImageB64) run(initialImageB64)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const upd = (key, field) => (v) => setItems((l) => l.map((i) => (i.key === key ? { ...i, [field]: v } : i)))
 
@@ -87,7 +92,7 @@ export default function AIModal({ profile, onSave, onClose }) {
             </button>
           )}
           {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
-          <button className="btn-primary w-full" disabled={loading || (!text.trim() && !image)} onClick={run}>
+          <button className="btn-primary w-full" disabled={loading || (!text.trim() && !image)} onClick={() => run()}>
             {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />} {loading ? 'Analizando…' : 'Analizar'}
           </button>
           <p className="text-center text-[11px] text-slate-400">Las estimaciones de la IA son aproximadas: revísalas antes de guardar.</p>
