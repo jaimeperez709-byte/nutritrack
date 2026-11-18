@@ -54,7 +54,8 @@ export async function analyzeMeal({ provider, apiKey, model, text, imageBase64 }
   if (provider === 'gemini') {
     const parts = [{ text: `${PROMPT}\n\n${userText}` }]
     if (imageBase64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: imageBase64 } })
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`
+    const urlFor = (mod) => `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mod)}:generateContent`
+    let url = urlFor(m)
     const netErr = (e) =>
       new Error(
         e?.name === 'AbortError'
@@ -92,6 +93,19 @@ export async function analyzeMeal({ provider, apiKey, model, text, imageBase64 }
         const err = netErr(e2)
         err.message += ` (${e2?.name || 'Error'}: ${e2?.message || ''})`
         throw err
+      }
+    }
+    // Modelo saturado (503/429) o retirado (404): probar otros modelos Flash
+    if (!r.res.ok && !model && [503, 429, 404].includes(r.res.status)) {
+      for (const alt of ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash']) {
+        url = urlFor(alt)
+        try {
+          r = await call({ ...base, thinkingConfig: { thinkingLevel: 'low' } })
+          if (!r.res.ok && r.res.status === 400) r = await call(base)
+        } catch {
+          continue
+        }
+        if (r.res.ok) break
       }
     }
     if (!r.res.ok) throw new Error(r.json.error?.message || `Gemini respondió ${r.res.status}`)
