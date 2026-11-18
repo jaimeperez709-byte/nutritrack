@@ -7,7 +7,7 @@ Los valores de kcal, protein, carbs y fat son TOTALES para los gramos indicados 
 export const DEFAULT_MODELS = { gemini: 'gemini-3.8-flash', anthropic: 'claude-haiku-5-5' }
 
 // Reduce la foto para que la subida sea rápida
-export function fileToJpegBase64(file, maxSide = 1024) {
+export function fileToJpegBase64(file, maxSide = 800) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
     const img = new Image()
@@ -18,7 +18,7 @@ export function fileToJpegBase64(file, maxSide = 1024) {
       canvas.height = Math.round(img.height * k)
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
       URL.revokeObjectURL(url)
-      resolve(canvas.toDataURL('image/jpeg', 0.82).split(',')[1])
+      resolve(canvas.toDataURL('image/jpeg', 0.78).split(',')[1])
     }
     img.onerror = () => {
       URL.revokeObjectURL(url)
@@ -54,20 +54,45 @@ export async function analyzeMeal({ provider, apiKey, model, text, imageBase64 }
   if (provider === 'gemini') {
     const parts = [{ text: `${PROMPT}\n\n${userText}` }]
     if (imageBase64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: imageBase64 } })
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts }],
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
-        }),
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`
+    const netErr = (e) =>
+      new Error(
+        e?.name === 'AbortError'
+          ? 'Gemini tardó demasiado en responder. Revisa tu señal e intenta de nuevo.'
+          : 'No se pudo conectar con Gemini. Revisa tu conexión e intenta de nuevo.'
+      )
+    const call = async (generationConfig) => {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 45000)
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          signal: ctrl.signal,
+          body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig }),
+        })
+        const json = await res.json().catch(() => ({}))
+        return { res, json }
+      } finally {
+        clearTimeout(timer)
       }
-    )
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(json.error?.message || `Gemini respondió ${res.status}`)
-    const out = json.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || ''
+    }
+    const base = { responseMimeType: 'application/json', temperature: 0.2 }
+    let r
+    try {
+      // Razonamiento mínimo = respuesta mucho más rápida
+      r = await call({ ...base, thinkingConfig: { thinkingLevel: 'low' } })
+      if (!r.res.ok && r.res.status === 400) r = await call(base)
+    } catch (e) {
+      // un reintento si la conexión falló
+      try {
+        r = await call(base)
+      } catch (e2) {
+        throw netErr(e2)
+      }
+    }
+    if (!r.res.ok) throw new Error(r.json.error?.message || `Gemini respondió ${r.res.status}`)
+    const out = r.json.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || ''
     return extractJson(out)
   }
 
