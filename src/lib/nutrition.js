@@ -165,3 +165,15 @@ export function planGoals(p) {
 }
 
 export const goalOfPlan = (g) => (g.weeklyKg < -0.05 ? 'deficit' : g.weeklyKg > 0.05 ? 'superavit' : 'mantenimiento')
+
+// Pasos que ya están incluidos en tu nivel de actividad (no se vuelven a contar)
+const STEP_BASE = { sedentario: 3000, ligero: 6000, moderado: 8000, alto: 11000, muy_alto: 14000 }
+// Ajuste de calorías del día según los pasos: ~0,0005 kcal por paso y por kg; entre -150 y +800
+export function stepsAdjust(profile, steps) {
+  const n = num(steps)
+  if (!n) return 0
+  const kg = num(profile.weight) || 70
+  const extra = (n - (STEP_BASE[profile.activity] || 8000)) * 0.0005 * kg
+  return Math.max(-150, Math.min(800, r0(extra)))
+}
+export const stepBase = (profile) => STEP_BASE[profile.activity] || 8000

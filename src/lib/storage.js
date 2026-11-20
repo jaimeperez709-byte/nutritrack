@@ -31,7 +31,7 @@ export const emptyProfile = {
   eventDate: '2027-06-05',
 }
 
-const fresh = () => ({ profile: { ...emptyProfile }, foods: seedFoods(), recipes: [], log: {}, weights: [], _t: 0 })
+const fresh = () => ({ profile: { ...emptyProfile }, foods: seedFoods(), recipes: [], log: {}, weights: [], steps: {}, _t: 0 })
 
 export function loadData() {
   try {
@@ -44,6 +44,7 @@ export function loadData() {
       recipes: Array.isArray(d.recipes) ? d.recipes : [],
       log: d.log && typeof d.log === 'object' ? d.log : {},
       weights: Array.isArray(d.weights) ? d.weights : [],
+      steps: d.steps && typeof d.steps === 'object' ? d.steps : {},
       _t: d._t || 0,
     }
   } catch {
@@ -87,6 +88,7 @@ export async function readBackup(file, current) {
     recipes: Array.isArray(d.recipes) ? d.recipes : [],
     log: d.log,
     weights: Array.isArray(d.weights) ? d.weights : [],
+    steps: d.steps && typeof d.steps === 'object' ? d.steps : {},
   }
 }
 

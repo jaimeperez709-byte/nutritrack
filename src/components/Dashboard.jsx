@@ -2,10 +2,43 @@ import React from 'react'
 import { ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react'
 import { Ring, MacroBar, MacroLine, Empty } from './ui'
 import ProgressCard from './Progress'
-import { MEALS, sumTotals, entryTotals, prettyDate, shiftDate, dateKey, r0 } from '../lib/nutrition'
+import { Footprints } from 'lucide-react'
+import { NumField } from './ui'
+import { stepsAdjust, stepBase, num, MEALS, sumTotals, entryTotals, prettyDate, shiftDate, dateKey, r0 } from '../lib/nutrition'
+
+function StepsCard({ data, setData, date, adj }) {
+  const saved = data.steps?.[date]
+  const [v, setV] = React.useState(saved ? String(saved) : '')
+  React.useEffect(() => setV(data.steps?.[date] ? String(data.steps[date]) : ''), [date, data.steps])
+  const save = () =>
+    setData((d) => {
+      const steps = { ...(d.steps || {}) }
+      if (num(v) > 0) steps[date] = Math.round(num(v))
+      else delete steps[date]
+      return { ...d, steps }
+    })
+  return (
+    <div className="card space-y-2">
+      <div className="flex items-center gap-2 font-bold"><Footprints size={18} className="text-brand-600" /> Pasos del día</div>
+      <div className="flex items-end gap-2">
+        <NumField className="flex-1" value={v} onChange={setV} suffix="pasos" placeholder="Míralos en tu reloj" />
+        <button className="btn-primary" disabled={num(v) === num(saved)} onClick={save}>Guardar</button>
+      </div>
+      <p className="text-xs text-slate-500">
+        {saved
+          ? adj === 0
+            ? `Equivale a tu actividad normal (~${stepBase(data.profile).toLocaleString('es')} pasos): sin cambios en las calorías.`
+            : `${adj > 0 ? 'Caminaste más' : 'Caminaste menos'} que tu actividad normal: ${adj > 0 ? '+' : ''}${adj} kcal en la meta de hoy.`
+          : 'Ponlos al final del día y la meta de calorías se ajusta sola.'}
+      </p>
+    </div>
+  )
+}
 
 export default function Dashboard({ data, setData, date, setDate, onAdd, onEdit, onAI, onGoProfile }) {
-  const { profile, log } = data
+  const { log } = data
+  const adj = stepsAdjust(data.profile, data.steps?.[date])
+  const profile = { ...data.profile, calories: data.profile.calories + adj, carbs: Math.max(0, data.profile.carbs + Math.round(adj / 4)) }
   const entries = log[date] || []
   const total = sumTotals(entries)
   const today = dateKey()
@@ -39,6 +72,8 @@ export default function Dashboard({ data, setData, date, setDate, onAdd, onEdit,
       </div>
 
       <ProgressCard data={data} setData={setData} onGoProfile={onGoProfile} />
+
+      <StepsCard data={data} setData={setData} date={date} adj={adj} />
 
       {/* Resumen */}
       <div className="card flex items-center gap-4">
